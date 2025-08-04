@@ -414,6 +414,18 @@ private fun generateChartHtml(
                             borderVisible: (chartOptions.timeScale && chartOptions.timeScale.borderVisible !== undefined) ? chartOptions.timeScale.borderVisible : true,
                             rightOffset: (chartOptions.timeScale && chartOptions.timeScale.rightOffset !== undefined) ? chartOptions.timeScale.rightOffset : 0,
                             barSpacing: (chartOptions.timeScale && chartOptions.timeScale.barSpacing !== undefined) ? chartOptions.timeScale.barSpacing : 6
+                        },
+                        handleScroll: {
+                            mouseWheel: ${!drawingMode},
+                            pressedMouseMove: ${!drawingMode},
+                            horzTouchDrag: ${!drawingMode},
+                            vertTouchDrag: ${!drawingMode}
+                        },
+                        handleScale: {
+                            mouseWheel: ${!drawingMode},
+                            pinch: ${!drawingMode},
+                            axisPressedMouseMove: ${!drawingMode},
+                            axisDoubleClickReset: ${!drawingMode}
                         }
             }
         );
@@ -567,6 +579,12 @@ private fun generateChartHtml(
             event.preventDefault();
         });
         
+        // Prevent default touch behaviors
+        container.addEventListener('touchstart', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        });
+        
         // Handle touch interactions
         container.addEventListener('touchend', (event) => {
             if (event.touches.length > 0) return;
@@ -580,6 +598,7 @@ private fun generateChartHtml(
             
             handleChartInteraction(point);
             event.preventDefault();
+            event.stopPropagation();
         });
         
         // Handle mouse movement for crosshair positioning
@@ -612,12 +631,20 @@ private fun generateChartHtml(
         
         function handleChartInteraction(point) {
             const timeScale = chart.timeScale();
-            const priceScale = chart.priceScale();
             
+            // Get coordinates with validation
             const time = timeScale.coordinateToTime(point.x);
-            const price = priceScale.coordinateToPrice(point.y);
+            const price = series.coordinateToPrice(point.y);
             
-            if (time === null || price === null) return;
+            console.log('Chart interaction:', { point, time, price });
+            
+            // Validate coordinates
+            if (time === null || price === null || 
+                typeof time === 'undefined' || typeof price === 'undefined' ||
+                isNaN(price)) {
+                console.warn('Invalid coordinates:', { time, price });
+                return;
+            }
             
             if (crosshairState.mode === 'waiting') {
                 // First touch - show crosshair immediately and set first point
@@ -628,12 +655,27 @@ private fun generateChartHtml(
                 indicator.textContent = '두 번째 점으로 이동하고 터치';
                 indicator.style.background = 'rgba(33, 150, 243, 0.9)';
                 
+                console.log('First point set:', crosshairState.firstPoint);
+                
             } else if (crosshairState.mode === 'placing-second') {
                 // Second touch - create trend line
                 const secondPoint = { time: time, price: price };
-                createTrendLine(crosshairState.firstPoint, secondPoint);
                 
-                // Reset state
+                console.log('Second point set:', secondPoint);
+                
+                // Validate both points before creating line
+                if (crosshairState.firstPoint && 
+                    crosshairState.firstPoint.time !== null && 
+                    crosshairState.firstPoint.price !== null &&
+                    secondPoint.time !== null && 
+                    secondPoint.price !== null) {
+                    
+                    createTrendLine(crosshairState.firstPoint, secondPoint);
+                } else {
+                    console.error('Invalid points for trend line creation');
+                }
+                
+                // Reset state regardless
                 crosshairState.mode = 'waiting';
                 crosshairState.firstPoint = null;
                 hideCrosshair();
@@ -669,16 +711,34 @@ private fun generateChartHtml(
         
         function createTrendLine(firstPoint, secondPoint) {
             try {
+                // Validate points
+                if (!firstPoint || !secondPoint || 
+                    firstPoint.time === null || firstPoint.price === null ||
+                    secondPoint.time === null || secondPoint.price === null) {
+                    console.error('Invalid points for trend line:', firstPoint, secondPoint);
+                    return;
+                }
+                
+                // Convert times to proper format
+                const time1 = typeof firstPoint.time === 'number' ? firstPoint.time : Math.floor(firstPoint.time);
+                const time2 = typeof secondPoint.time === 'number' ? secondPoint.time : Math.floor(secondPoint.time);
+                
+                // Validate converted times
+                if (!time1 || !time2 || time1 === time2) {
+                    console.error('Invalid time values:', time1, time2);
+                    return;
+                }
+                
                 // Add a simple line series to represent the trend line
-                const trendLineSeries = chart.addSeries(LightweightCharts.LineSeries, {
+                const trendLineSeries = chart.addLineSeries({
                     color: '#4a90e2',
                     lineWidth: 2,
                     lineStyle: 0 // solid line
                 });
                 
                 const lineData = [
-                    { time: firstPoint.time, value: firstPoint.price },
-                    { time: secondPoint.time, value: secondPoint.price }
+                    { time: time1, value: firstPoint.price },
+                    { time: time2, value: secondPoint.price }
                 ];
                 
                 trendLineSeries.setData(lineData);

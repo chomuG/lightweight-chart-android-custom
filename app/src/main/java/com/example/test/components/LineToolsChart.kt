@@ -473,10 +473,9 @@ fun LineToolsChart(
         
         function handleChartInteraction(point) {
             const timeScale = chart.timeScale();
-            const priceScale = chart.priceScale();
             
             const time = timeScale.coordinateToTime(point.x);
-            const price = priceScale.coordinateToPrice(point.y);
+            const price = series.coordinateToPrice(point.y);
             
             if (time === null || price === null) return;
             
