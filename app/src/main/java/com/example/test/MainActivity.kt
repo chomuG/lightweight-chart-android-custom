@@ -15,10 +15,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.test.components.*
+import com.example.test.presentation.ui.screen.MockTradingScreen
 import com.example.test.ui.theme.TestTheme
 import com.example.test.viewmodel.ChartEvent
 import com.example.test.viewmodel.ChartViewModel
 import com.example.test.viewmodel.MultiPanelViewModel
+import dagger.hilt.android.AndroidEntryPoint
+
+@AndroidEntryPoint
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,12 +36,16 @@ class MainActivity : ComponentActivity() {
                 when (currentScreen) {
                     "main" -> ChartDemoScreen(
                         onMultiPanelClick = { currentScreen = "multiPanel" },
-                        onLineToolsClick = { currentScreen = "lineTools" }
+                        onLineToolsClick = { currentScreen = "lineTools" },
+                        onMockTradingClick = { currentScreen = "mockTrading" }
                     )
                     "multiPanel" -> MultiPanelDemoScreen(
                         onBackClick = { currentScreen = "main" }
                     )
                     "lineTools" -> LineToolsDemoScreen(
+                        onBackClick = { currentScreen = "main" }
+                    )
+                    "mockTrading" -> MockTradingScreen(
                         onBackClick = { currentScreen = "main" }
                     )
                 }
@@ -51,7 +59,8 @@ class MainActivity : ComponentActivity() {
 fun ChartDemoScreen(
     viewModel: ChartViewModel = viewModel(),
     onMultiPanelClick: () -> Unit = {},
-    onLineToolsClick: () -> Unit = {}
+    onLineToolsClick: () -> Unit = {},
+    onMockTradingClick: () -> Unit = {}
 ) {
     val chartOptions by viewModel.chartOptions.collectAsState()
     val lineData by viewModel.lineData.collectAsState()
@@ -93,6 +102,9 @@ fun ChartDemoScreen(
                     }
                     IconButton(onClick = onLineToolsClick) {
                         Text("📏")
+                    }
+                    IconButton(onClick = onMockTradingClick) {
+                        Text("💰")
                     }
                     IconButton(onClick = { viewModel.toggleTheme() }) {
                         Text("🌓")
